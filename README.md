@@ -36,8 +36,8 @@ Construye y levanta los contenedores Docker:
 
 ```
 docker-compose up --build -d
-Esto construirá las imágenes de Docker y levantará los contenedores necesarios para la aplicación y la base de datos MySQL.
 ```
+Esto construirá las imágenes de Docker y levantará los contenedores necesarios para la aplicación y la base de datos MySQL.
 
 
 
@@ -172,6 +172,30 @@ npm start
 npx sequelize-cli db:migrate
 
 ```
+## Documentación de la API
+
+La documentación de la API está disponible y accesible mediante ApiDoc. Para visualizarla, sigue estos pasos:
+
+1. Genera la documentación de ApiDoc ejecutando el siguiente comando:
+
+    ```bash
+    apidoc -i user/ -i product/ -i purchase/ -o apidoc/
+    ```
+
+2. Inicia el servidor de tu aplicación (asegúrate de que está corriendo en el puerto `3001`):
+
+    ```bash
+    npm start
+    ```
+## Nota
+Si ya tienes tu contenedor de docker corriendo accede por esta url 
+ [http://localhost:3000/docs](http://localhost:3001/docs) 
+
+3. Accede a la documentación en tu navegador si estas sin Docker (modo local):
+
+    [http://localhost:3001/docs](http://localhost:3001/docs)
+
+Al acceder a esta URL, podrás visualizar la documentación completa de la API generada por ApiDoc.
 
 
 

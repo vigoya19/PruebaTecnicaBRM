@@ -6,6 +6,7 @@ const purchaseRoutes = require('./purchase/route');
 const db = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
+const path = require('path');
 
 const User = require('./user/model');
 const Product = require('./product/model');
@@ -15,6 +16,8 @@ const PurchaseProduct = require('./purchaseProduct/model');
 const app = express();
 
 app.use(bodyParser.json());
+
+app.use('/docs', express.static(path.join(__dirname, 'apidoc')));
 
 app.use('/auth', userRoutes);
 app.use('/products', productRoutes);
