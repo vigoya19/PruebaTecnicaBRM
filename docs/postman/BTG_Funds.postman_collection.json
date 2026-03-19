@@ -1,0 +1,306 @@
+{
+  "info": {
+    "name": "BTG Funds Platform",
+    "_postman_id": "8c7980cb-8ab7-4e17-8f7f-2cfd9f775e4d",
+    "description": "Collection to validate registration, login and funds management on API Gateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Register",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "  const payload = pm.response.json();",
+              "  if (payload.idToken) { pm.environment.set('idToken', payload.idToken); pm.environment.set('token', payload.idToken); }",
+              "  if (payload.accessToken) { pm.environment.set('accessToken', payload.accessToken); }",
+              "  if (payload.refreshToken) { pm.environment.set('refreshToken', payload.refreshToken); }",
+              "  if (payload.customer && payload.customer.customerId) {",
+              "    pm.environment.set('customerId', payload.customer.customerId);",
+              "  }",
+              "  if (payload.customer && payload.customer.email) {",
+              "    pm.environment.set('email', payload.customer.email);",
+              "  }",
+              "  if (payload.customer && payload.customer.name) {",
+              "    pm.environment.set('name', payload.customer.name);",
+              "  }",
+              "  if (payload.customer && payload.customer.phone) {",
+              "    pm.environment.set('phone', payload.customer.phone);",
+              "  }",
+              "  if (payload.customer && payload.customer.notificationPreference) {",
+              "    pm.environment.set('notificationPreference', payload.customer.notificationPreference);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"name\": \"{{name}}\",\n  \"phone\": \"{{phone}}\",\n  \"notificationPreference\": \"{{notificationPreference}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "register"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const payload = pm.response.json();",
+              "  if (payload.idToken) { pm.environment.set('idToken', payload.idToken); pm.environment.set('token', payload.idToken); }",
+              "  if (payload.accessToken) { pm.environment.set('accessToken', payload.accessToken); }",
+              "  if (payload.refreshToken) { pm.environment.set('refreshToken', payload.refreshToken); }",
+              "  if (payload.customer && payload.customer.customerId) {",
+              "    pm.environment.set('customerId', payload.customer.customerId);",
+              "  }",
+              "  if (payload.customer && payload.customer.email) {",
+              "    pm.environment.set('email', payload.customer.email);",
+              "  }",
+              "  if (payload.customer && payload.customer.name) {",
+              "    pm.environment.set('name', payload.customer.name);",
+              "  }",
+              "  if (payload.customer && payload.customer.phone) {",
+              "    pm.environment.set('phone', payload.customer.phone);",
+              "  }",
+              "  if (payload.customer && payload.customer.notificationPreference) {",
+              "    pm.environment.set('notificationPreference', payload.customer.notificationPreference);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "List Funds",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/funds",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "funds"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get My Profile",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/customers/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "customers",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Open Subscription",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fundId\": {{fundId}},\n  \"notificationPreference\": \"{{notificationPreference}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/customers/me/subscriptions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "customers",
+            "me",
+            "subscriptions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "List Transactions",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/customers/me/transactions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "customers",
+            "me",
+            "transactions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Cancel Subscription",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/customers/me/subscriptions/{{fundId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "customers",
+            "me",
+            "subscriptions",
+            "{{fundId}}"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "idToken",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "email",
+      "value": "customer@example.com"
+    },
+    {
+      "key": "password",
+      "value": "Temp1234!"
+    },
+    {
+      "key": "name",
+      "value": "Demo Customer"
+    },
+    {
+      "key": "phone",
+      "value": "+573001112233"
+    },
+    {
+      "key": "fundId",
+      "value": "1"
+    },
+    {
+      "key": "notificationPreference",
+      "value": "email"
+    },
+    {
+      "key": "customerId",
+      "value": ""
+    }
+  ]
+}

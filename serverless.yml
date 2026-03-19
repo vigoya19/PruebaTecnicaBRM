@@ -1,0 +1,178 @@
+service: btg-funds-platform
+frameworkVersion: '4'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  timeout: 15
+  logRetentionInDays: 14
+  environment:
+    NODE_ENV: ${sls:stage}
+    FUNDS_TABLE_NAME: ${self:service}-${sls:stage}
+    COGNITO_USER_POOL_ID:
+      Ref: CognitoUserPool
+    COGNITO_USER_POOL_CLIENT_ID:
+      Ref: CognitoUserPoolClient
+    SES_FROM_EMAIL: ${env:SES_FROM_EMAIL, ''}
+    DYNAMODB_ENDPOINT: ${env:DYNAMODB_ENDPOINT, ''}
+  httpApi:
+    authorizers:
+      cognitoJwtAuthorizer:
+        type: jwt
+        identitySource: $request.header.Authorization
+        issuerUrl:
+          Fn::Join:
+            - ''
+            - - 'https://cognito-idp.'
+              - ${aws:region}
+              - '.amazonaws.com/'
+              - Ref: CognitoUserPool
+        audience:
+          - Ref: CognitoUserPoolClient
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:TransactWriteItems
+          Resource:
+            - Fn::GetAtt:
+                - FundsTable
+                - Arn
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminAddUserToGroup
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminGetUser
+            - cognito-idp:AdminSetUserPassword
+          Resource:
+            - Fn::GetAtt:
+                - CognitoUserPool
+                - Arn
+        - Effect: Allow
+          Action:
+            - cognito-idp:InitiateAuth
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+            - ses:SendRawEmail
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - sns:Publish
+          Resource: '*'
+
+plugins:
+  - serverless-offline
+
+functions:
+  health:
+    handler: src/lambda.handler
+    events:
+      - httpApi:
+          path: /health
+          method: GET
+  api:
+    handler: src/lambda.handler
+    events:
+      - httpApi:
+          path: /auth/register
+          method: POST
+      - httpApi:
+          path: /auth/login
+          method: POST
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+          authorizer:
+            name: cognitoJwtAuthorizer
+
+resources:
+  Resources:
+    FundsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.FUNDS_TABLE_NAME}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: ${self:service}-${sls:stage}-users
+        UsernameAttributes:
+          - email
+        AutoVerifiedAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: true
+            RequireUppercase: true
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: ${self:service}-${sls:stage}-client
+        UserPoolId:
+          Ref: CognitoUserPool
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+          - ALLOW_USER_SRP_AUTH
+        GenerateSecret: false
+    CognitoAdminGroup:
+      Type: AWS::Cognito::UserPoolGroup
+      Properties:
+        GroupName: admin
+        Description: Administrators of the BTG funds platform
+        UserPoolId:
+          Ref: CognitoUserPool
+    CognitoCustomerGroup:
+      Type: AWS::Cognito::UserPoolGroup
+      Properties:
+        GroupName: customer
+        Description: Customers of the BTG funds platform
+        UserPoolId:
+          Ref: CognitoUserPool
+
+  Outputs:
+    FundsTableName:
+      Value: ${self:provider.environment.FUNDS_TABLE_NAME}
+    CognitoUserPoolId:
+      Value:
+        Ref: CognitoUserPool
+    CognitoUserPoolClientId:
+      Value:
+        Ref: CognitoUserPoolClient

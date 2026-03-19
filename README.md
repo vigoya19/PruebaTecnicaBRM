@@ -1,224 +1,1090 @@
+# BTG Funds Platform
 
-# Proyecto de Prueba Técnica INVENTARIO_DB
-# Opcion 1
+Backend serverless para la prueba tecnica de BTG Pactual. La solucion implementa la gestion de fondos solicitada con `Node.js`, `Fastify`, `AWS Lambda`, `API Gateway HTTP API`, `Amazon Cognito`, `DynamoDB`, `SNS/SES` y `Serverless Framework`.
 
-## Descripción
+## Que resuelve la solucion
 
-Este proyecto es una aplicación Node.js que utiliza Express para el servidor web, Sequelize para el ORM y MySQL como base de datos. El proyecto incluye autenticación con JWT, validación con Joi y registro de logs con Winston.
+La API permite que un cliente:
 
-## Requisitos
+- se registre e inicie sesion
+- consulte su perfil y saldo disponible
+- consulte el catalogo de fondos
+- se suscriba a un fondo
+- cancele una suscripcion
+- consulte su historial de transacciones
+- reciba una notificacion por email o SMS segun su preferencia
 
-- Docker
-- Docker Compose
+La entrega incluye adicionalmente:
 
-## Instalación y Despliegue
+- modelo NoSQL en DynamoDB
+- infraestructura como codigo con Serverless Framework
+- autenticacion y autorizacion con Cognito
+- pruebas unitarias
+- coleccion y environment de Postman
+- scripts SQL para la parte 2
 
-Sigue los siguientes pasos para desplegar el proyecto usando Docker:
+## Arquitectura
 
-1. **Clona el repositorio**:
-
-   ```
-   git clone https://github.com/vigoya19/PruebaTecnicaBRM
-   cd PruebaTecnicaBRM
-Crea un archivo .env en la raíz del proyecto con las siguientes variables:
-
-env
-```
-MYSQL_USER=user
-MYSQL_PASSWORD=skitiswaif123
-MYSQL_DATABASE=inventario_db
-MYSQL_HOST=mysql
-PORT=3000
-JWT_SECRET=your_jwt_secret_key
-```
-
-Construye y levanta los contenedores Docker:
-
-```
-docker-compose up --build -d
-```
-Esto construirá las imágenes de Docker y levantará los contenedores necesarios para la aplicación y la base de datos MySQL.
+- `API Gateway HTTP API` expone la API
+- `JWT Authorizer` valida los tokens emitidos por `Amazon Cognito`
+- `AWS Lambda` ejecuta la aplicacion `Fastify`
+- `DynamoDB` persiste fondos, perfiles, transacciones y suscripciones
+- `SNS` y `SES` manejan notificaciones por SMS y email
+- `CloudWatch Logs` centraliza observabilidad
+- `Serverless Framework` despliega la infraestructura
 
 
+<p align="center">
+  <img src="docs/images/arquitectura.png" alt="BTG Funds Cloud Architecture" width="900" />
+</p>
 
-Accede a la aplicación:
+Documentacion adicional:
 
-Una vez que los contenedores estén levantados, podrás acceder a la aplicación en http://localhost:3000.
+- `docs/architecture.md`
+- `docs/cloud-architecture.md`
+- `docs/use-cases.md`
+- `docs/code-structure.md`
+- `docs/libraries-used.md`
+- `docs/requirements-coverage.md`
+- `docs/arquitectura.pdf`
 
-## Migraciones Sequalize
-Las migraciones de la base de datos se ejecutan automáticamente al levantar los contenedores Docker. Puedes ejecutar manualmente las migraciones con el siguiente comando:
+## Reglas de negocio implementadas
 
-```
+- saldo inicial por cliente: `COP 500000`
+- cada fondo tiene un monto minimo de vinculacion
+- al abrir una suscripcion se descuenta el monto minimo del fondo
+- al cancelar una suscripcion se devuelve el valor vinculado
+- cada transaccion tiene identificador unico
+- si no hay saldo suficiente se responde:
+  - `No tiene saldo disponible para vincularse al fondo <Nombre del fondo>`
+- no se permite tener dos suscripciones activas al mismo fondo para el mismo cliente
 
-docker-compose exec app npm run migrate
+## Catalogo de fondos sembrado
 
-```
-## Problemas Comunes
-El puerto 3306 ya está en uso:
+| ID | Nombre | Monto minimo | Categoria |
+| --- | --- | ---: | --- |
+| 1 | `FPV_BTG_PACTUAL_RECAUDADORA` | `75000` | `FPV` |
+| 2 | `FPV_BTG_PACTUAL_ECOPETROL` | `125000` | `FPV` |
+| 3 | `DEUDAPRIVADA` | `50000` | `FIC` |
+| 4 | `FDO-ACCIONES` | `250000` | `FIC` |
+| 5 | `FPV_BTG_PACTUAL_DINAMICA` | `100000` | `FPV` |
 
-Si obtienes un error que dice que el puerto 3306 ya está en uso, asegúrate de que no haya otro servicio MySQL ejecutándose en tu máquina.
-Problemas de conexión a la base de datos:
+## Endpoints implementados
 
-Asegúrate de que las variables de entorno en tu archivo .env coincidan con las configuraciones en docker-compose.yml.
-Si tienes algún problema o duda, no dudes en abrir un issue en el repositorio.
+| Metodo | Ruta | Token | Descripcion |
+| --- | --- | --- | --- |
+| `GET` | `/health` | No | Healthcheck del servicio |
+| `POST` | `/auth/register` | No | Crea usuario en Cognito y perfil de negocio en DynamoDB |
+| `POST` | `/auth/login` | No | Inicia sesion en Cognito y devuelve tokens |
+| `GET` | `/customers/me` | Si | Retorna perfil y saldo del usuario autenticado |
+| `GET` | `/funds` | Si | Lista el catalogo de fondos |
+| `POST` | `/customers/me/subscriptions` | Si | Abre una suscripcion |
+| `DELETE` | `/customers/me/subscriptions/:fundId` | Si | Cancela una suscripcion |
+| `GET` | `/customers/me/transactions` | Si | Lista historial de transacciones |
+| `GET` | `/admin/customers` | Si, rol `admin` | Lista perfiles de clientes |
+| `GET` | `/admin/customers/:customerId` | Si, rol `admin` | Consulta el perfil de un cliente |
+| `GET` | `/admin/customers/:customerId/transactions` | Si, rol `admin` | Consulta transacciones de un cliente |
 
+## Estructura del proyecto
 
-# Opcion 2
-
-Crear la base de datos manualmente
-Si no deseas utilizar Docker para desplegar el proyecto, puedes seguir estos pasos para crear las bases de datos y tablas manualmente:
-
-* Instala MySQL: Si no tienes MySQL instalado, puedes descargarlo e instalarlo desde aquí.
-
-* Conéctate a MySQL: Abre una terminal o consola y conéctate a tu servidor MySQL utilizando el siguiente comando:
-
-
-```
-mysql -u root -p
-```
-Ingresa tu contraseña de root cuando se te solicite.
-
-Crea la base de datos: Ejecuta el siguiente comando para crear la base de datos inventario_db:
-
-```
-CREATE DATABASE inventario_db;
-```
-Selecciona la base de datos: Usa la base de datos que acabas de crear:
-
-```
-USE inventario_db;
-```
-
-
-Configura las variables de entorno: Crea un archivo .env en la raíz del proyecto con las siguientes variables:
-
-```
-MYSQL_USER=root
-MYSQL_PASSWORD=tu_contraseña_de_root
-MYSQL_DATABASE=inventario_db
-MYSQL_HOST=localhost
-PORT=3000
-JWT_SECRET=your_jwt_secret_key
-```
-
-
-Crea las tablas: Copia y pega los scripts SQL proporcionados anteriormente para crear las tablas Users, Products, Purchases y PurchaseProducts.
-
-Configura las variables de entorno: Crea un archivo .env en la raíz del proyecto con las siguientes variables:
-
-```
-MYSQL_USER=root
-MYSQL_PASSWORD=tu_contraseña_de_root
-MYSQL_DATABASE=inventario_db
-MYSQL_HOST=localhost
-PORT=3000
-JWT_SECRET=your_jwt_secret_key
+```text
+src/
+  config/
+  controllers/
+  errors/
+  hooks/
+  lib/
+  repositories/
+  routes/
+  schemas/
+  services/
+docs/
+  images/
+  postman/
+sql/
+scripts/
+tests/
+serverless.yml
+package.json
 ```
 
+## Requisitos previos
 
+Para instalar, desplegar y probar la solucion se necesita:
+
+- `Node.js 20` o superior
+- `npm`
+- una cuenta AWS con permisos sobre:
+  - Lambda
+  - API Gateway
+  - DynamoDB
+  - Cognito
+  - CloudWatch
+  - SNS
+  - SES
+- AWS CLI configurado localmente
+
+Archivos AWS CLI tipicos en Windows:
+
+- `C:\Users\<usuario>\.aws\credentials`
+- `C:\Users\<usuario>\.aws\config`
+
+Ejemplo de verificacion rapida:
+
+```bash
+aws sts get-caller-identity
 ```
 
--- Crear tabla Users
-CREATE TABLE Users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(255) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL,
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+## Instalacion local
 
--- Crear tabla Products
-CREATE TABLE Products (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    lotNumber VARCHAR(255) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    price FLOAT NOT NULL,
-    availableQuantity INT NOT NULL,
-    entryDate DATE NOT NULL,
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+### 1. Clonar el repositorio
 
--- Crear tabla Purchases
-CREATE TABLE Purchases (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    userId INT,
-    purchaseDate DATE NOT NULL,
-    totalAmount FLOAT NOT NULL,
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (userId) REFERENCES Users(id)
-);
-
--- Crear tabla PurchaseProducts
-CREATE TABLE PurchaseProducts (
-    purchaseId INT,
-    productId INT,
-    quantity INT NOT NULL,
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (purchaseId, productId),
-    FOREIGN KEY (purchaseId) REFERENCES Purchases(id),
-    FOREIGN KEY (productId) REFERENCES Products(id)
-);
+```bash
+git clone <url-del-repositorio>
+cd PruebaTecnica
 ```
 
-O si Prefieres Instala las dependencias y ejecuta las migraciones de la aplicación:
-```
+### 2. Instalar dependencias
+
+```bash
 npm install
-npm install --save-dev sequelize-cli
-npm start
-npx sequelize-cli db:migrate
-
 ```
-## Documentación de la API
 
-La documentación de la API está disponible y accesible mediante ApiDoc. Para visualizarla, sigue estos pasos:
+### 3. Crear el archivo `.env`
 
-1. Genera la documentación de ApiDoc ejecutando el siguiente comando:
+Crear un `.env` en la raiz del proyecto. Ejemplo minimo:
 
-    ```bash
-    apidoc -i user/ -i product/ -i purchase/ -o apidoc/
-    ```
+```env
+PORT=3000
+AWS_REGION=us-east-1
+FUNDS_TABLE_NAME=btg-funds-platform-dev
+SES_FROM_EMAIL=correo-verificado@example.com
+DYNAMODB_ENDPOINT=
+COGNITO_USER_POOL_ID=
+COGNITO_USER_POOL_CLIENT_ID=
+LOCAL_AUTH_BYPASS=true
+```
 
-2. Inicia el servidor de tu aplicación (asegúrate de que está corriendo en el puerto `3001`):
+Notas:
 
-    ```bash
-    npm start
-    ```
-## Nota
-Si ya tienes tu contenedor de docker corriendo accede por esta url 
- [http://localhost:3000/docs](http://localhost:3001/docs) 
+- `DYNAMODB_ENDPOINT` debe quedar vacio si se va a usar DynamoDB real en AWS
+- `COGNITO_USER_POOL_ID` y `COGNITO_USER_POOL_CLIENT_ID` se inyectan automaticamente en Lambda durante el deploy
+- `LOCAL_AUTH_BYPASS=true` solo sirve para desarrollo local; en AWS la proteccion real la hace API Gateway con JWT authorizer
 
-3. Accede a la documentación en tu navegador si estas sin Docker (modo local):
+## Scripts disponibles
 
-    [http://localhost:3001/docs](http://localhost:3001/docs)
+| Script | Uso |
+| --- | --- |
+| `npm run dev` | levanta el servidor local |
+| `npm run start` | levanta el servidor local |
+| `npm test` | ejecuta pruebas unitarias |
+| `npm test -- --coverage` | genera coverage |
+| `npm run seed:funds` | inserta el catalogo de fondos en DynamoDB |
+| `npm run deploy` | despliega con Serverless |
+| `npm run remove` | elimina el stack |
+| `npm run offline` | levanta serverless offline |
 
-Al acceder a esta URL, podrás visualizar la documentación completa de la API generada por ApiDoc.
+## Ejecucion local
 
+Para correr la API localmente:
 
+```bash
+npm run dev
+```
 
+Base URL local:
 
-Librerías Utilizadas
-* bcryptjs: Para el hash de contraseñas.
-* body-parser: Para parsear los cuerpos de las solicitudes.
-* dotenv: Para manejar variables de entorno.
-* express: Framework web para Node.js.
-* joi: Para la validación de datos.
-* jsonwebtoken: Para la autenticación y generación de tokens JWT.
-* mysql2: Cliente MySQL para Node.js.
-* sequelize: ORM para manejar la base de datos.
-* winston: Para el registro de logs.
-* Scripts de npm
-* start: Inicia la aplicación.
-* migrate: Ejecuta las migraciones de la base de datos.
-* seed: Ejecuta los seeders de la base de datos.
-* lint: Ejecuta ESLint para revisar el código.
-* lint:fix: Ejecuta ESLint y corrige los errores que pueden ser corregidos automáticamente.
-* prettier: Ejecuta Prettier para revisar el formato del código.
-* prettier:fix: Ejecuta Prettier y corrige el formato del código.
-* test: Ejecuta las pruebas con Jest.
-* test:watch: Ejecuta las pruebas en modo watch con Jest.
-* test:coverage: Ejecuta las pruebas y genera un reporte de cobertura con Jest.
-* Migraciones
+```text
+http://localhost:3000
+```
+
+## Pruebas unitarias
+
+Ejecutar:
+
+```bash
+npm test
+```
+
+Coverage:
+
+```bash
+npm test -- --coverage
+```
+
+Ultimo coverage esperado:
+
+- `100%` statements
+- `92.59%` branch
+- `100%` functions
+- `100%` lines
+
+## Despliegue en AWS
+
+### 1. Desplegar el stack
+
+```bash
+npx serverless deploy --stage dev --region us-east-1
+```
+
+Este comando crea:
+
+- HTTP API
+- Lambda principal
+- tabla DynamoDB
+- Cognito User Pool
+- Cognito User Pool Client
+- grupos `admin` y `customer`
+
+### 2. Ver la configuracion resuelta
+
+```bash
+npx serverless print --stage dev --region us-east-1
+```
+
+### 3. Ver informacion del despliegue
+
+```bash
+npx serverless info --stage dev --region us-east-1
+```
+
+### 4. Identificar la URL de API Gateway
+
+El despliegue devuelve una URL como:
+
+```text
+https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com
+```
+
+Esa URL se debe cargar en Postman como `baseUrl`.
+
+## Prueba directa contra el ambiente ya desplegado
+
+Si el revisor quiere validar la solucion sin desplegar primero su propio stack, puede consumir directamente el ambiente actualmente desplegado en mi cuenta AWS usando esta URL base:
+
+```text
+https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com
+```
+
+Endpoints disponibles en ese ambiente:
+
+- `GET https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com/health`
+- `POST https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com/auth/register`
+- `POST https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com/auth/login`
+- `GET https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com/customers/me`
+- `GET https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com/funds`
+- `POST https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com/customers/me/subscriptions`
+- `DELETE https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com/customers/me/subscriptions/{fundId}`
+- `GET https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com/customers/me/transactions`
+- `GET https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com/admin/customers`
+- `GET https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com/admin/customers/{customerId}`
+- `GET https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com/admin/customers/{customerId}/transactions`
+
+Para este escenario:
+
+- basta con importar la coleccion y el environment de Postman
+- verificar que `baseUrl` apunte a la URL anterior
+- ejecutar `Register` o `Login`
+- continuar con el resto del flujo
+
+Si el revisor quiere una validacion totalmente aislada sobre su propia cuenta AWS, entonces debe seguir la seccion de despliegue y usar su propio `baseUrl`.
+
+## Seed de fondos
+
+El catalogo de fondos no se crea automaticamente con el deploy. Debe poblarse con el script:
+
+```bash
+npm run seed:funds
+```
+
+Antes de correrlo, verifica:
+
+- `AWS_REGION=us-east-1`
+- `FUNDS_TABLE_NAME=btg-funds-platform-dev`
+- `DYNAMODB_ENDPOINT=` vacio
+
+Validacion posterior:
+
+- `GET /funds` no debe devolver `items: []`
+
+Si `GET /funds` devuelve vacio, normalmente significa que el deploy salio bien pero el seed aun no se ha ejecutado.
+
+## Postman
+
+### Archivos a importar
+
+Coleccion:
+
+- `docs/postman/BTG_Funds.postman_collection.json`
+
+Environment:
+
+- `docs/postman/BTG_Funds_AWS.postman_environment.json`
+
+### Variables incluidas en el environment
+
+| Variable | Uso |
+| --- | --- |
+| `baseUrl` | URL de API Gateway |
+| `token` | token bearer usado por toda la coleccion |
+| `idToken` | JWT principal retornado por register/login |
+| `accessToken` | access token de Cognito |
+| `refreshToken` | refresh token de Cognito |
+| `email` | correo usado por register/login |
+| `password` | password usado por register/login |
+| `name` | nombre del usuario demo |
+| `phone` | telefono del usuario demo |
+| `fundId` | fondo a usar en apertura/cancelacion |
+| `notificationPreference` | `email` o `sms` |
+| `customerId` | id del usuario autenticado |
+
+### Configuracion correcta en Postman
+
+1. Importar la coleccion `BTG_Funds.postman_collection.json`.
+2. Importar el environment `BTG_Funds_AWS.postman_environment.json`.
+3. En la esquina superior derecha de Postman seleccionar el environment `BTG Funds AWS`.
+4. Editar `baseUrl` si el revisor desplego una API distinta.
+5. Ajustar `email`, `password`, `name`, `phone` y `notificationPreference` si quiere crear un usuario distinto.
+
+Valor por defecto incluido en el environment:
+
+```text
+baseUrl=https://8ru2lbghw2.execute-api.us-east-1.amazonaws.com
+```
+
+Eso permite probar directamente el ambiente ya desplegado sin modificar nada, salvo que el revisor prefiera apuntar a su propio stack.
+
+Importante:
+
+- si Postman muestra `No environment selected`, los scripts de `Register` y `Login` no podran guardar `token`
+- si `token` no se guarda, cualquier endpoint protegido devolvera `401 Unauthorized`
+
+### Scripts automaticos incluidos
+
+Las requests `Register` y `Login` ya traen scripts de test que actualizan automaticamente:
+
+- `token`
+- `idToken`
+- `accessToken`
+- `refreshToken`
+- `customerId`
+- `email`
+- `name`
+- `phone`
+- `notificationPreference`
+
+Por eso el flujo recomendado es:
+
+1. ejecutar `Register` o `Login`
+2. dejar que Postman guarde el JWT
+3. consumir el resto de endpoints sin escribir manualmente el bearer token
+
+## Flujo recomendado de validacion
+
+Orden sugerido para un revisor funcional:
+
+1. `Health`
+2. `Register`
+3. `Login`
+4. `Get My Profile`
+5. `List Funds`
+6. `Open Subscription`
+7. `Get My Profile`
+8. `List Transactions`
+9. `Cancel Subscription`
+10. `Get My Profile`
+11. `List Transactions`
+
+Que debe observarse:
+
+- el usuario se crea en Cognito y en DynamoDB
+- `Login` devuelve tokens y actualiza el environment
+- el perfil inicia con `availableBalance: 500000`
+- la apertura descuenta saldo
+- la cancelacion devuelve el saldo
+- el historial registra apertura y cancelacion
+- `notificationStatus` muestra el resultado del intento de envio
+
+## Como probar endpoint por endpoint
+
+### 1. `GET /health`
+
+Uso:
+
+- validar que API Gateway, Lambda y Fastify estan operativos
+
+Request:
+
+```http
+GET /health
+```
+
+Respuesta esperada:
+
+```json
+{
+  "service": "btg-funds-platform",
+  "status": "ok",
+  "timestamp": "2026-03-18T00:00:00.000Z"
+}
+```
+
+### 2. `POST /auth/register`
+
+Uso:
+
+- crear un usuario en Cognito
+- crear su perfil de negocio en DynamoDB
+- iniciar sesion inmediatamente y devolver tokens
+
+Body:
+
+```json
+{
+  "email": "cliente.demo@example.com",
+  "password": "Temp1234!",
+  "name": "Cliente Demo",
+  "phone": "+573001112233",
+  "notificationPreference": "email"
+}
+```
+
+Respuesta esperada:
+
+- `idToken`
+- `accessToken`
+- `refreshToken`
+- `customer`
+
+Observaciones:
+
+- esta request ya actualiza el environment de Postman
+- si el usuario ya existe en Cognito, el revisor puede cambiar el correo o pasar directamente a `Login`
+
+### 3. `POST /auth/login`
+
+Uso:
+
+- autenticar un usuario ya creado
+- obtener el JWT para los endpoints protegidos
+
+Body:
+
+```json
+{
+  "email": "cliente.demo@example.com",
+  "password": "Temp1234!"
+}
+```
+
+Respuesta esperada:
+
+- `idToken`
+- `accessToken`
+- `refreshToken`
+- `customer`
+
+Observaciones:
+
+- esta request vuelve a cargar el environment
+- `token` queda apuntando al `idToken`
+
+### 4. `GET /customers/me`
+
+Uso:
+
+- consultar el perfil del cliente autenticado
+- ver el saldo disponible antes y despues de operar fondos
+
+Header requerido:
+
+```http
+Authorization: Bearer {{token}}
+```
+
+Respuesta esperada:
+
+```json
+{
+  "customerId": "...",
+  "email": "cliente.demo@example.com",
+  "name": "Cliente Demo",
+  "phone": "+573001112233",
+  "notificationPreference": "email",
+  "availableBalance": 500000
+}
+```
+
+### 5. `GET /funds`
+
+Uso:
+
+- consultar el catalogo de fondos disponibles
+
+Header requerido:
+
+```http
+Authorization: Bearer {{token}}
+```
+
+Respuesta esperada:
+
+```json
+{
+  "items": [
+    {
+      "fundId": 1,
+      "name": "FPV_BTG_PACTUAL_RECAUDADORA",
+      "minimumAmount": 75000,
+      "category": "FPV"
+    }
+  ]
+}
+```
+
+Si devuelve:
+
+```json
+{
+  "items": []
+}
+```
+
+entonces falta ejecutar el seed de fondos.
+
+### 6. `POST /customers/me/subscriptions`
+
+Uso:
+
+- abrir una suscripcion para el cliente autenticado
+- descontar el monto minimo del fondo
+- registrar transaccion de apertura
+- intentar enviar notificacion
+
+Body:
+
+```json
+{
+  "fundId": 1,
+  "notificationPreference": "email"
+}
+```
+
+Respuesta esperada:
+
+```json
+{
+  "transactionId": "...",
+  "customerId": "...",
+  "fundId": 1,
+  "fundName": "FPV_BTG_PACTUAL_RECAUDADORA",
+  "amount": 75000,
+  "balanceAfter": 425000,
+  "status": "ACTIVE",
+  "notificationStatus": "SENT"
+}
+```
+
+Estados posibles de `notificationStatus`:
+
+- `SENT`
+- `FAILED`
+- `SIMULATED`
+
+Respuesta esperada en error de negocio:
+
+```json
+{
+  "message": "No tiene saldo disponible para vincularse al fondo <Nombre del fondo>"
+}
+```
+
+Respuesta esperada si el cliente ya estaba suscrito:
+
+```json
+{
+  "message": "The customer already has an active subscription for this fund"
+}
+```
+
+### 7. `DELETE /customers/me/subscriptions/:fundId`
+
+Uso:
+
+- cancelar una suscripcion activa
+- devolver el valor vinculado al saldo disponible
+- registrar transaccion de cancelacion
+
+Ejemplo:
+
+```http
+DELETE /customers/me/subscriptions/1
+```
+
+Respuesta esperada:
+
+```json
+{
+  "transactionId": "...",
+  "customerId": "...",
+  "fundId": 1,
+  "fundName": "FPV_BTG_PACTUAL_RECAUDADORA",
+  "amount": 75000,
+  "balanceAfter": 500000,
+  "status": "CANCELLED"
+}
+```
+
+### 8. `GET /customers/me/transactions`
+
+Uso:
+
+- consultar aperturas y cancelaciones del usuario autenticado
+- validar trazabilidad completa
+
+Respuesta esperada:
+
+```json
+{
+  "items": [
+    {
+      "transactionId": "...",
+      "type": "OPEN",
+      "fundId": 1,
+      "fundName": "FPV_BTG_PACTUAL_RECAUDADORA",
+      "amount": 75000,
+      "balanceBefore": 500000,
+      "balanceAfter": 425000,
+      "notificationChannel": "email",
+      "notificationStatus": "SENT",
+      "createdAt": "2026-03-18T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+### 9. `GET /admin/customers`
+
+Uso:
+
+- listar perfiles de clientes desde un principal con rol `admin`
+- soportar auditoria operativa o soporte
+
+Respuesta esperada:
+
+```json
+{
+  "items": [
+    {
+      "customerId": "...",
+      "email": "cliente.demo@example.com",
+      "name": "Cliente Demo",
+      "availableBalance": 500000,
+      "role": "customer"
+    }
+  ]
+}
+```
+
+### 10. `GET /admin/customers/:customerId`
+
+Uso:
+
+- consultar el perfil de un cliente especifico desde un principal con rol `admin`
+
+Respuesta esperada:
+
+```json
+{
+  "customerId": "...",
+  "email": "cliente.demo@example.com",
+  "name": "Cliente Demo",
+  "phone": "+573001112233",
+  "notificationPreference": "email",
+  "availableBalance": 500000,
+  "role": "customer"
+}
+```
+
+### 11. `GET /admin/customers/:customerId/transactions`
+
+Uso:
+
+- consultar transacciones de cualquier cliente desde un principal con rol `admin`
+
+Respuesta esperada:
+
+```json
+{
+  "items": [
+    {
+      "transactionId": "...",
+      "type": "OPEN",
+      "fundId": 1,
+      "fundName": "FPV_BTG_PACTUAL_RECAUDADORA",
+      "amount": 75000
+    }
+  ]
+}
+```
+
+## Uso recomendado de la coleccion Postman
+
+Los nombres de las requests corresponden a endpoints reales. La idea es ejecutar la misma request varias veces durante el flujo para ver el cambio de estado. Por ejemplo:
+
+- ejecutar `Get My Profile` antes de suscribirse para ver `500000`
+- ejecutar `Get My Profile` despues de suscribirse para ver `425000`
+- ejecutar `Get My Profile` despues de cancelar para ver de nuevo `500000`
+
+Lo mismo aplica para `List Transactions`, que debe mostrar primero la apertura y luego apertura + cancelacion.
+
+## Notificaciones: como interpretarlas
+
+La aplicacion intenta enviar notificaciones usando:
+
+- `SES` para email
+- `SNS` para SMS
+
+Estados posibles:
+
+- `SENT`: el proveedor AWS respondio correctamente
+- `FAILED`: el proveedor fallo o el entorno lo restringio
+- `SIMULATED`: no habia canal aplicable para envio real
+
+Importante para el revisor:
+
+- la operacion de negocio no se revierte si falla la notificacion
+- el saldo y la suscripcion siguen siendo consistentes
+- el resultado del canal se deja trazado en la transaccion
+
+## Roles y autorizacion
+
+La solucion define dos roles:
+
+- `customer`
+- `admin`
+
+### `customer`
+
+Puede:
+
+- registrarse
+- iniciar sesion
+- consultar su perfil
+- ver fondos
+- suscribirse
+- cancelar suscripciones
+- consultar su propio historial
+
+### `admin`
+
+Puede:
+
+- consultar perfiles de clientes
+- consultar el perfil de un cliente especifico
+- consultar transacciones de cualquier cliente
+
+El rol `admin` esta pensado para:
+
+- auditoria
+- soporte operativo
+- supervision de actividad de clientes
+
+En Cognito esto se representa con grupos:
+
+- `customer`
+- `admin`
+
+La API valida el JWT en `API Gateway` y luego hace autorizacion fina dentro de la aplicacion usando el rol presente en los claims.
+
+### Como probar el rol `admin`
+
+El endpoint `POST /auth/register` crea usuarios en el grupo `customer`.
+
+Si el revisor quiere probar los endpoints administrativos, debe tomar un usuario existente de Cognito y agregarlo al grupo `admin`.
+
+Ejemplo con AWS CLI:
+
+```bash
+aws cognito-idp admin-add-user-to-group \
+  --user-pool-id <CognitoUserPoolId> \
+  --username <correo-del-usuario> \
+  --group-name admin \
+  --region us-east-1
+```
+
+Despues de eso:
+
+1. volver a ejecutar `Login`
+2. obtener un nuevo token con el claim del grupo actualizado
+3. probar:
+   - `GET /admin/customers`
+   - `GET /admin/customers/:customerId`
+   - `GET /admin/customers/:customerId/transactions`
+
+En ambientes AWS restringidos, especialmente con SES sandbox:
+
+- un correo destino no verificado puede producir `notificationStatus: FAILED`
+- eso no es un fallo del core del negocio sino una restriccion operativa del servicio administrado
+
+## Limitacion actual del ambiente desplegado en mi cuenta
+
+El ambiente ya desplegado en mi cuenta AWS sirve para validar completamente:
+
+- registro
+- login
+- consulta de perfil
+- consulta de fondos
+- apertura de suscripcion
+- cancelacion
+- historial de transacciones
+
+La limitacion conocida de ese ambiente esta en el canal de notificaciones:
+
+- mi cuenta AWS no tiene habilitado un entorno de mensajeria completamente abierto para terceros
+- en particular, `SES` puede seguir operando con restricciones de sandbox o con identidades verificadas limitadas
+- por esa razon, un revisor que use su propio correo puede ver `notificationStatus: FAILED`
+- aun en ese caso, la suscripcion, el saldo y la transaccion quedan correctamente persistidos
+
+En otras palabras:
+
+- la integracion con `SES` y `SNS` existe
+- la logica de negocio esta implementada
+- la restriccion es operativa del entorno AWS desde el cual estoy enviando
+- no afecta el flujo principal ni la consistencia del negocio
+
+## Recomendacion para el revisor si despliega su propio stack
+
+Si el revisor quiere validar la parte de notificaciones contra su propia cuenta AWS y recibir mensajes reales, recomiendo configurar adicionalmente:
+
+### Email con SES
+
+1. definir `SES_FROM_EMAIL` con un remitente valido
+2. verificar ese remitente o dominio en `Amazon SES`
+3. si la cuenta sigue en sandbox:
+   - verificar tambien los destinatarios de prueba
+4. si desea que cualquier correo no verificado pueda recibir mensajes:
+   - solicitar acceso a produccion en `SES`
+
+### SMS con SNS
+
+1. entrar a `Amazon SNS`
+2. configurar `Text messaging preferences`
+3. definir el tipo de mensaje como `Transactional`
+4. revisar limites de gasto para SMS
+5. si la cuenta esta en sandbox de SMS:
+   - verificar el numero destino
+6. si desea enviar a cualquier numero:
+   - sacar la cuenta del sandbox de SMS
+
+Resumen practico:
+
+- si prueban contra mi ambiente, el flujo funcional principal ya se puede validar directamente
+- si quieren validar tambien la entrega real de email/SMS a sus propios destinos, deben desplegar su stack y habilitar `SES` y `SNS` en su cuenta
+
+## Troubleshooting
+
+### `401 Unauthorized`
+
+Revisar:
+
+- que se haya ejecutado `Login` o `Register`
+- que el environment `BTG Funds AWS` este seleccionado en Postman
+- que la variable `token` tenga valor
+
+### `GET /funds` devuelve `items: []`
+
+Revisar:
+
+- que el stack este desplegado
+- que `FUNDS_TABLE_NAME` apunte a la tabla correcta
+- que se haya ejecutado `npm run seed:funds`
+
+### `notificationStatus: FAILED`
+
+Revisar:
+
+- `SES_FROM_EMAIL` configurado
+- si el remitente esta verificado en SES
+- si el entorno AWS permite enviar al destinatario
+
+Esto no invalida la transaccion financiera; solo refleja que el canal no pudo completarse.
+
+### El login funciona pero los otros endpoints siguen fallando
+
+La causa mas comun es Postman mal configurado:
+
+- `No environment selected`
+- `token` vacio
+- `baseUrl` apuntando a otra API
+
+## Variables de entorno
+
+| Variable | Descripcion |
+| --- | --- |
+| `PORT` | Puerto local |
+| `AWS_REGION` | Region AWS |
+| `FUNDS_TABLE_NAME` | Nombre de la tabla DynamoDB |
+| `COGNITO_USER_POOL_ID` | User Pool de Cognito |
+| `COGNITO_USER_POOL_CLIENT_ID` | App Client de Cognito |
+| `SES_FROM_EMAIL` | Remitente usado por SES |
+| `DYNAMODB_ENDPOINT` | endpoint de DynamoDB local, vacio para AWS real |
+| `LOCAL_AUTH_BYPASS` | bypass local de autenticacion |
+
+## Parte 2 - SQL
+
+La Parte 2 del enunciado no pide construir otro servicio backend ni otra API. Lo que pide es entregar los scripts SQL correspondientes para PostgreSQL, contemplando:
+
+- creacion de la base logica para el ejercicio
+- creacion del esquema
+- creacion de tablas
+- definicion de llaves foraneas
+- datos de ejemplo
+- consulta solicitada
+
+En esta solucion, esa parte se entrega como un conjunto ordenado de scripts listos para ejecutar en PostgreSQL.
+
+### Archivos entregados
+
+- `sql/01_schema.sql`
+  - crea el esquema `btg`
+- `sql/02_tables.sql`
+  - crea las tablas:
+    - `btg.cliente`
+    - `btg.sucursal`
+    - `btg.producto`
+    - `btg.inscripcion`
+    - `btg.disponibilidad`
+    - `btg.visitan`
+- `sql/03_constraints.sql`
+  - crea las relaciones entre tablas con llaves foraneas
+- `sql/04_seed.sql`
+  - inserta datos de ejemplo para validar la consulta
+- `sql/05_queries.sql`
+  - contiene la consulta pedida en el enunciado
+
+### Que consulta resuelve el punto 2
+
+La consulta entregada resuelve el requerimiento:
+
+- obtener los nombres de los clientes que tienen inscrito algun producto disponible solo en las sucursales que visitan
+
+La logica implementada usa:
+
+- `EXISTS`
+- `NOT EXISTS`
+
+Esto permite validar correctamente dos condiciones:
+
+1. que el cliente tenga una inscripcion a un producto
+2. que no exista ninguna sucursal con ese producto que el cliente no haya visitado
+
+### Orden de ejecucion sugerido en PostgreSQL
+
+Si el revisor quiere probar la Parte 2 manualmente en PostgreSQL, el orden recomendado es:
+
+1. ejecutar `sql/01_schema.sql`
+2. ejecutar `sql/02_tables.sql`
+3. ejecutar `sql/03_constraints.sql`
+4. ejecutar `sql/04_seed.sql`
+5. ejecutar `sql/05_queries.sql`
+
+### Ejemplo de ejecucion con `psql`
+
+Si ya existe una base de datos PostgreSQL creada por el revisor, por ejemplo `btg`, puede ejecutar:
+
+```bash
+psql -d btg -f sql/01_schema.sql
+psql -d btg -f sql/02_tables.sql
+psql -d btg -f sql/03_constraints.sql
+psql -d btg -f sql/04_seed.sql
+psql -d btg -f sql/05_queries.sql
+```
+
+Nota:
+
+- el repositorio entrega los scripts SQL completos
+- la creacion fisica de la base de datos PostgreSQL puede hacerla el revisor previamente con el nombre que prefiera
+- una vez creada la base, estos scripts ya resuelven el resto del punto 2
+
+### Resultado esperado con los datos de ejemplo
+
+Con el seed actual, la consulta debe devolver los clientes que cumplen la condicion de estar inscritos en productos disponibles exclusivamente en las sucursales que visitan.
+
+## Archivos relevantes para el revisor
+
+- `serverless.yml`
+- `package.json`
+- `docs/use-cases.md`
+- `docs/code-structure.md`
+- `docs/libraries-used.md`
+- `docs/postman/BTG_Funds.postman_collection.json`
+- `docs/postman/BTG_Funds_AWS.postman_environment.json`
+- `docs/architecture.md`
+- `docs/cloud-architecture.md`
+- `docs/requirements-coverage.md`
+- `sql/01_schema.sql`
+- `sql/02_tables.sql`
+- `sql/03_constraints.sql`
+- `sql/04_seed.sql`
+- `sql/05_queries.sql`
+
+## Resumen de validacion rapida
+
+Si el revisor solo quiere confirmar el flujo principal, el minimo es:
+
+1. `npm install`
+2. `npx serverless deploy --stage dev --region us-east-1`
+3. actualizar `baseUrl` en Postman con la URL desplegada
+4. `npm run seed:funds`
+5. importar coleccion y environment de Postman
+6. seleccionar `BTG Funds AWS`
+7. ejecutar `Register`
+8. ejecutar `Get My Profile`
+9. ejecutar `List Funds`
+10. ejecutar `Open Subscription`
+11. ejecutar `List Transactions`
+12. ejecutar `Cancel Subscription`
+
+Con ese flujo ya se validan autenticacion, fondos, saldo, suscripcion, cancelacion e historial.
+
+## Validacion en 5 minutos
+
+Si el evaluador dispone de muy poco tiempo, esta es la validacion mas corta y efectiva:
+
+1. importar la coleccion y el environment de Postman
+2. seleccionar `BTG Funds AWS`
+3. ejecutar `Register`
+4. ejecutar `Get My Profile`
+5. ejecutar `List Funds`
+6. ejecutar `Open Subscription`
+7. ejecutar `List Transactions`
+8. ejecutar `Cancel Subscription`
+
+Que deberia verificar rapidamente:
+
+- `Register`
+  - crea el usuario
+  - devuelve tokens
+  - llena automaticamente el environment
+- `Get My Profile`
+  - muestra saldo inicial de `500000`
+- `List Funds`
+  - devuelve el catalogo de 5 fondos
+- `Open Subscription`
+  - descuenta saldo
+  - crea la transaccion
+  - devuelve `notificationStatus`
+- `List Transactions`
+  - muestra al menos una transaccion `OPEN`
+- `Cancel Subscription`
+  - devuelve el saldo
+  - deja trazabilidad de cancelacion
+
+Resultado esperado:
+
+- autenticacion funcionando
+- reglas de negocio funcionando
+- persistencia funcionando
+- trazabilidad funcionando
+- integracion de notificaciones implementada
