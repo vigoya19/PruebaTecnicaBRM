@@ -9,7 +9,22 @@ describe('transactions service', () => {
     };
 
     const transactionsRepository = {
-      listByCustomer: jest.fn().mockResolvedValue([{ transactionId: 'tx-1' }]),
+      listByCustomer: jest.fn().mockResolvedValue([
+        {
+          transactionId: 'tx-1',
+          type: 'OPEN',
+          fundId: 1,
+          fundName: 'Fund A',
+          amount: 1000,
+          balanceBefore: 500000,
+          balanceAfter: 499000,
+          notificationChannel: 'email',
+          notificationStatus: 'SENT',
+          createdAt: '2026-03-19T00:00:00.000Z',
+          PK: 'CUSTOMER#customer-1',
+          SK: 'TRANSACTION#...',
+        },
+      ]),
     };
 
     const service = createTransactionsService({
@@ -25,7 +40,21 @@ describe('transactions service', () => {
         { customerId: 'customer-1', role: 'customer' },
         { limit: 10 },
       ),
-    ).resolves.toEqual([{ transactionId: 'tx-1' }]);
+    ).resolves.toEqual([
+      {
+        transactionId: 'tx-1',
+        type: 'OPEN',
+        fundId: 1,
+        fundName: 'Fund A',
+        amount: 1000,
+        balanceBefore: 500000,
+        balanceAfter: 499000,
+        notificationChannel: 'email',
+        notificationStatus: 'SENT',
+        createdAt: '2026-03-19T00:00:00.000Z',
+        updatedAt: undefined,
+      },
+    ]);
   });
 
   it('lists transactions for any customer when the principal is admin', async () => {
@@ -41,7 +70,20 @@ describe('transactions service', () => {
         }),
       },
       transactionsRepository: {
-        listByCustomer: jest.fn().mockResolvedValue([{ transactionId: 'tx-2' }]),
+        listByCustomer: jest.fn().mockResolvedValue([
+          {
+            transactionId: 'tx-2',
+            type: 'CANCEL',
+            fundId: 1,
+            fundName: 'Fund A',
+            amount: 1000,
+            balanceBefore: 499000,
+            balanceAfter: 500000,
+            createdAt: '2026-03-19T00:10:00.000Z',
+            PK: 'CUSTOMER#customer-2',
+            SK: 'TRANSACTION#...',
+          },
+        ]),
       },
       authzService,
     });
@@ -52,7 +94,21 @@ describe('transactions service', () => {
         'customer-2',
         { limit: 5 },
       ),
-    ).resolves.toEqual([{ transactionId: 'tx-2' }]);
+    ).resolves.toEqual([
+      {
+        transactionId: 'tx-2',
+        type: 'CANCEL',
+        fundId: 1,
+        fundName: 'Fund A',
+        amount: 1000,
+        balanceBefore: 499000,
+        balanceAfter: 500000,
+        notificationChannel: undefined,
+        notificationStatus: undefined,
+        createdAt: '2026-03-19T00:10:00.000Z',
+        updatedAt: undefined,
+      },
+    ]);
 
     expect(authzService.ensureAdmin).toHaveBeenCalled();
   });

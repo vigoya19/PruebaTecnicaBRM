@@ -234,6 +234,13 @@ Permitir que el cliente consulte aperturas y cancelaciones realizadas.
 
 Permitir que un usuario con rol `admin` consulte informacion de clientes y su actividad para fines de soporte o auditoria.
 
+Nota de alcance:
+
+- para facilitar la demo, la API permite crear un usuario `admin` a demanda mediante `POST /auth/register` con `role: "admin"`
+- esta decision se tomo especificamente para pruebas y demostracion
+- las capacidades del admin en la solucion actual son de solo lectura
+- el admin consulta informacion de usuarios `customer`, pero no altera su estado
+
 ### Endpoints
 
 - `GET /admin/customers`

@@ -1,3 +1,17 @@
+const toTransactionResponse = (transaction) => ({
+  transactionId: transaction.transactionId,
+  type: transaction.type,
+  fundId: transaction.fundId,
+  fundName: transaction.fundName,
+  amount: transaction.amount,
+  balanceBefore: transaction.balanceBefore,
+  balanceAfter: transaction.balanceAfter,
+  notificationChannel: transaction.notificationChannel,
+  notificationStatus: transaction.notificationStatus,
+  createdAt: transaction.createdAt,
+  updatedAt: transaction.updatedAt,
+});
+
 const createTransactionsService = ({
   customersRepository,
   transactionsRepository,
@@ -5,10 +19,12 @@ const createTransactionsService = ({
 }) => ({
   async listForUser(principal, query) {
     await customersRepository.ensureProfile(principal);
-    return transactionsRepository.listByCustomer(
+    const items = await transactionsRepository.listByCustomer(
       principal.customerId,
       query.limit,
     );
+
+    return items.map(toTransactionResponse);
   },
 
   async listForCustomerAsAdmin(principal, customerId, query) {
@@ -19,7 +35,12 @@ const createTransactionsService = ({
       return [];
     }
 
-    return transactionsRepository.listByCustomer(customerId, query.limit);
+    const items = await transactionsRepository.listByCustomer(
+      customerId,
+      query.limit,
+    );
+
+    return items.map(toTransactionResponse);
   },
 });
 

@@ -42,3 +42,5 @@
 - El flujo local permite bypass de autenticacion solo para desarrollo y pruebas rapidas.
 - En AWS, el registro y el login se realizan desde la propia API, pero la identidad sigue siendo administrada por Cognito.
 - Para una demostracion completamente real en AWS se debe desplegar la infraestructura y probar con usuarios de Cognito.
+- Para fines de demo, la API permite crear un usuario `admin` a demanda mediante `POST /auth/register` con `role: "admin"`.
+- Esa capacidad existe para acelerar la validacion del rol administrativo; los endpoints `admin` implementados en esta solucion son de solo lectura sobre clientes y sus transacciones.

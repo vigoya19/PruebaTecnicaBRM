@@ -5,7 +5,14 @@ describe('customers service', () => {
     const customersRepository = {
       ensureProfile: jest.fn().mockResolvedValue({
         customerId: 'customer-1',
+        email: 'customer@example.com',
+        name: 'Customer One',
+        phone: '+573001112233',
+        notificationPreference: 'email',
         availableBalance: 500000,
+        role: 'customer',
+        PK: 'CUSTOMER#customer-1',
+        SK: 'PROFILE',
       }),
     };
 
@@ -34,7 +41,17 @@ describe('customers service', () => {
 
     const customersRepository = {
       ensureProfile: jest.fn(),
-      listProfiles: jest.fn().mockResolvedValue([{ customerId: 'customer-1' }]),
+      listProfiles: jest.fn().mockResolvedValue([
+        {
+          customerId: 'customer-1',
+          email: 'customer@example.com',
+          name: 'Customer One',
+          availableBalance: 500000,
+          role: 'customer',
+          PK: 'CUSTOMER#customer-1',
+          SK: 'PROFILE',
+        },
+      ]),
       getById: jest.fn(),
     };
 
@@ -48,7 +65,19 @@ describe('customers service', () => {
         customerId: 'admin-1',
         role: 'admin',
       }),
-    ).resolves.toEqual([{ customerId: 'customer-1' }]);
+    ).resolves.toEqual([
+      {
+        customerId: 'customer-1',
+        email: 'customer@example.com',
+        name: 'Customer One',
+        phone: undefined,
+        notificationPreference: undefined,
+        availableBalance: 500000,
+        role: 'customer',
+        createdAt: undefined,
+        updatedAt: undefined,
+      },
+    ]);
 
     expect(authzService.ensureAdmin).toHaveBeenCalled();
   });
@@ -61,7 +90,15 @@ describe('customers service', () => {
     const customersRepository = {
       ensureProfile: jest.fn(),
       listProfiles: jest.fn(),
-      getById: jest.fn().mockResolvedValue({ customerId: 'customer-2' }),
+      getById: jest.fn().mockResolvedValue({
+        customerId: 'customer-2',
+        email: 'customer2@example.com',
+        name: 'Customer Two',
+        availableBalance: 425000,
+        role: 'customer',
+        PK: 'CUSTOMER#customer-2',
+        SK: 'PROFILE',
+      }),
     };
 
     const service = createCustomersService({
@@ -77,7 +114,17 @@ describe('customers service', () => {
         },
         'customer-2',
       ),
-    ).resolves.toEqual({ customerId: 'customer-2' });
+    ).resolves.toEqual({
+      customerId: 'customer-2',
+      email: 'customer2@example.com',
+      name: 'Customer Two',
+      phone: undefined,
+      notificationPreference: undefined,
+      availableBalance: 425000,
+      role: 'customer',
+      createdAt: undefined,
+      updatedAt: undefined,
+    });
   });
 
   it('fails when an admin requests a missing customer', async () => {

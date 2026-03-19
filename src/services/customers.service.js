@@ -1,13 +1,27 @@
 const { notFound } = require('../errors/app-error');
 
+const toCustomerResponse = (customer) => ({
+  customerId: customer.customerId,
+  email: customer.email,
+  name: customer.name,
+  phone: customer.phone,
+  notificationPreference: customer.notificationPreference,
+  availableBalance: customer.availableBalance,
+  role: customer.role,
+  createdAt: customer.createdAt,
+  updatedAt: customer.updatedAt,
+});
+
 const createCustomersService = ({ customersRepository, authzService }) => ({
   async getMyProfile(principal) {
-    return customersRepository.ensureProfile(principal);
+    const customer = await customersRepository.ensureProfile(principal);
+    return toCustomerResponse(customer);
   },
 
   async listCustomersForAdmin(principal) {
     authzService.ensureAdmin(principal);
-    return customersRepository.listProfiles();
+    const customers = await customersRepository.listProfiles();
+    return customers.map(toCustomerResponse);
   },
 
   async getCustomerByIdForAdmin(principal, customerId) {
@@ -18,7 +32,7 @@ const createCustomersService = ({ customersRepository, authzService }) => ({
       throw notFound('Customer not found');
     }
 
-    return customer;
+    return toCustomerResponse(customer);
   },
 });
 

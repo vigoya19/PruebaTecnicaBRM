@@ -45,20 +45,9 @@
 
 ## Diagrama
 
-```mermaid
-flowchart TD
-    A[Cliente] --> B[API Gateway HTTP API]
-    B --> C[JWT Authorizer]
-    C --> D[Cognito User Pool]
-    B --> E[Lambda Handler]
-    E --> F[Fastify]
-    F --> G[Services]
-    G --> H[Repositories]
-    H --> I[DynamoDB]
-    G --> J[SNS]
-    G --> K[SES]
-    E --> L[CloudWatch]
-```
+<p align="center">
+  <img src="images/arquitectura.png" alt="BTG Funds Cloud Architecture" width="1000" />
+</p>
 
 Diagrama cloud detallado:
 

@@ -142,6 +142,75 @@ describe('auth service', () => {
     });
   });
 
+  it('registers an admin user directly in the admin group', async () => {
+    process.env.COGNITO_USER_POOL_ID = 'pool-id';
+    process.env.COGNITO_USER_POOL_CLIENT_ID = 'client-id';
+
+    jest.resetModules();
+    const { createAuthService: createFreshAuthService } = require('../../src/services/auth.service');
+
+    const cognitoClient = buildCognitoClient([
+      {},
+      {},
+      {},
+      {
+        UserAttributes: [
+          { Name: 'sub', Value: 'admin-1' },
+          { Name: 'email', Value: 'admin@example.com' },
+          { Name: 'name', Value: 'Demo Admin' },
+        ],
+      },
+      {
+        AuthenticationResult: {
+          AccessToken: 'access',
+          IdToken:
+            'header.eyJzdWIiOiJhZG1pbi0xIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsIm5hbWUiOiJEZW1vIEFkbWluIiwiY29nbml0bzpncm91cHMiOlsiYWRtaW4iXX0.signature',
+          RefreshToken: 'refresh',
+          ExpiresIn: 3600,
+          TokenType: 'Bearer',
+        },
+      },
+    ]);
+
+    const customersRepository = {
+      createProfile: jest.fn().mockResolvedValue(undefined),
+      ensureProfile: jest.fn().mockResolvedValue({
+        customerId: 'admin-1',
+        email: 'admin@example.com',
+        name: 'Demo Admin',
+        role: 'admin',
+        availableBalance: 500000,
+      }),
+    };
+
+    const service = createFreshAuthService({
+      cognitoClient,
+      customersRepository,
+    });
+
+    const result = await service.register({
+      email: 'admin@example.com',
+      password: 'Temp1234!',
+      name: 'Demo Admin',
+      notificationPreference: 'email',
+      role: 'admin',
+    });
+
+    expect(cognitoClient.send.mock.calls[2][0].input.GroupName).toBe('admin');
+    expect(customersRepository.createProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: 'admin-1',
+        role: 'admin',
+      }),
+    );
+    expect(result).toMatchObject({
+      customer: {
+        customerId: 'admin-1',
+        role: 'admin',
+      },
+    });
+  });
+
   it('fails when Cognito configuration is missing', async () => {
     delete process.env.COGNITO_USER_POOL_ID;
     delete process.env.COGNITO_USER_POOL_CLIENT_ID;
@@ -229,6 +298,118 @@ describe('auth service', () => {
     });
   });
 
+  it('returns 401 when the user does not exist in Cognito', async () => {
+    process.env.COGNITO_USER_POOL_ID = 'pool-id';
+    process.env.COGNITO_USER_POOL_CLIENT_ID = 'client-id';
+
+    jest.resetModules();
+    const { createAuthService: createFreshAuthService } = require('../../src/services/auth.service');
+
+    const userNotFound = new Error('User does not exist');
+    userNotFound.name = 'UserNotFoundException';
+
+    const service = createFreshAuthService({
+      cognitoClient: buildCognitoClient([userNotFound]),
+      customersRepository: {
+        ensureProfile: jest.fn(),
+      },
+    });
+
+    await expect(
+      service.login({
+        email: 'missing@example.com',
+        password: 'Temp1234!',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Invalid email or password',
+    });
+  });
+
+  it('returns 401 when the password is invalid', async () => {
+    process.env.COGNITO_USER_POOL_ID = 'pool-id';
+    process.env.COGNITO_USER_POOL_CLIENT_ID = 'client-id';
+
+    jest.resetModules();
+    const { createAuthService: createFreshAuthService } = require('../../src/services/auth.service');
+
+    const notAuthorized = new Error('Incorrect username or password');
+    notAuthorized.name = 'NotAuthorizedException';
+
+    const service = createFreshAuthService({
+      cognitoClient: buildCognitoClient([notAuthorized]),
+      customersRepository: {
+        ensureProfile: jest.fn(),
+      },
+    });
+
+    await expect(
+      service.login({
+        email: 'login@example.com',
+        password: 'WrongPass123!',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Invalid email or password',
+    });
+  });
+
+  it('returns 401 when Cognito requires password reset', async () => {
+    process.env.COGNITO_USER_POOL_ID = 'pool-id';
+    process.env.COGNITO_USER_POOL_CLIENT_ID = 'client-id';
+
+    jest.resetModules();
+    const { createAuthService: createFreshAuthService } = require('../../src/services/auth.service');
+
+    const resetRequired = new Error('Password reset required');
+    resetRequired.name = 'PasswordResetRequiredException';
+
+    const service = createFreshAuthService({
+      cognitoClient: buildCognitoClient([resetRequired]),
+      customersRepository: {
+        ensureProfile: jest.fn(),
+      },
+    });
+
+    await expect(
+      service.login({
+        email: 'login@example.com',
+        password: 'Temp1234!',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Password reset is required for this user',
+    });
+  });
+
+  it('returns 401 when Cognito reports an unconfirmed user', async () => {
+    process.env.COGNITO_USER_POOL_ID = 'pool-id';
+    process.env.COGNITO_USER_POOL_CLIENT_ID = 'client-id';
+
+    jest.resetModules();
+    const { createAuthService: createFreshAuthService } = require('../../src/services/auth.service');
+
+    const notConfirmed = new Error('User not confirmed');
+    notConfirmed.name = 'UserNotConfirmedException';
+
+    const service = createFreshAuthService({
+      cognitoClient: buildCognitoClient([notConfirmed]),
+      customersRepository: {
+        ensureProfile: jest.fn(),
+      },
+    });
+
+    await expect(
+      service.login({
+        email: 'login@example.com',
+        password: 'Temp1234!',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'User is not confirmed',
+    });
+  });
+
   it('fails register when the email already exists in Cognito', async () => {
     process.env.COGNITO_USER_POOL_ID = 'pool-id';
     process.env.COGNITO_USER_POOL_CLIENT_ID = 'client-id';
@@ -257,6 +438,37 @@ describe('auth service', () => {
     ).rejects.toMatchObject({
       statusCode: 409,
       message: 'A customer with this email already exists',
+    });
+  });
+
+  it('returns 400 when Cognito rejects the register payload', async () => {
+    process.env.COGNITO_USER_POOL_ID = 'pool-id';
+    process.env.COGNITO_USER_POOL_CLIENT_ID = 'client-id';
+
+    jest.resetModules();
+    const { createAuthService: createFreshAuthService } = require('../../src/services/auth.service');
+
+    const invalidParameter = new Error('Invalid parameter');
+    invalidParameter.name = 'InvalidParameterException';
+
+    const service = createFreshAuthService({
+      cognitoClient: buildCognitoClient([invalidParameter]),
+      customersRepository: {
+        createProfile: jest.fn(),
+        ensureProfile: jest.fn(),
+      },
+    });
+
+    await expect(
+      service.register({
+        email: 'customer@example.com',
+        password: 'Temp1234!',
+        name: 'Demo Customer',
+        notificationPreference: 'email',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Invalid parameter',
     });
   });
 

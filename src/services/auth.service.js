@@ -23,6 +23,44 @@ const decodeJwtPayload = (token) => {
 };
 
 const createAuthService = ({ cognitoClient, customersRepository }) => {
+  const mapRegisterError = (error) => {
+    if (error.name === 'UsernameExistsException') {
+      throw conflict('A customer with this email already exists');
+    }
+
+    if (
+      error.name === 'InvalidPasswordException' ||
+      error.name === 'InvalidParameterException'
+    ) {
+      throw badRequest(error.message || 'Invalid registration request');
+    }
+
+    throw error;
+  };
+
+  const mapLoginError = (error) => {
+    if (
+      error.name === 'UserNotFoundException' ||
+      error.name === 'NotAuthorizedException'
+    ) {
+      throw unauthorized('Invalid email or password');
+    }
+
+    if (error.name === 'UserNotConfirmedException') {
+      throw unauthorized('User is not confirmed');
+    }
+
+    if (error.name === 'PasswordResetRequiredException') {
+      throw unauthorized('Password reset is required for this user');
+    }
+
+    if (error.name === 'InvalidParameterException') {
+      throw badRequest(error.message || 'Invalid login request');
+    }
+
+    throw error;
+  };
+
   const ensureConfig = () => {
     if (!env.cognitoUserPoolId || !env.cognitoUserPoolClientId) {
       throw badRequest(
@@ -32,16 +70,22 @@ const createAuthService = ({ cognitoClient, customersRepository }) => {
   };
 
   const authenticate = async ({ email, password }) => {
-    const response = await cognitoClient.send(
-      new InitiateAuthCommand({
-        AuthFlow: 'USER_PASSWORD_AUTH',
-        ClientId: env.cognitoUserPoolClientId,
-        AuthParameters: {
-          USERNAME: email,
-          PASSWORD: password,
-        },
-      }),
-    );
+    let response;
+
+    try {
+      response = await cognitoClient.send(
+        new InitiateAuthCommand({
+          AuthFlow: 'USER_PASSWORD_AUTH',
+          ClientId: env.cognitoUserPoolClientId,
+          AuthParameters: {
+            USERNAME: email,
+            PASSWORD: password,
+          },
+        }),
+      );
+    } catch (error) {
+      mapLoginError(error);
+    }
 
     const idToken = response.AuthenticationResult?.IdToken;
 
@@ -74,6 +118,7 @@ const createAuthService = ({ cognitoClient, customersRepository }) => {
   return {
     async register(payload) {
       ensureConfig();
+      const targetRole = payload.role || ROLES.CUSTOMER;
 
       try {
         await cognitoClient.send(
@@ -104,17 +149,13 @@ const createAuthService = ({ cognitoClient, customersRepository }) => {
 
         await cognitoClient.send(
           new AdminAddUserToGroupCommand({
-            GroupName: ROLES.CUSTOMER,
+            GroupName: targetRole,
             UserPoolId: env.cognitoUserPoolId,
             Username: payload.email,
           }),
         );
       } catch (error) {
-        if (error.name === 'UsernameExistsException') {
-          throw conflict('A customer with this email already exists');
-        }
-
-        throw error;
+        mapRegisterError(error);
       }
 
       const user = await cognitoClient.send(
@@ -133,7 +174,7 @@ const createAuthService = ({ cognitoClient, customersRepository }) => {
           payload.phone ||
           '',
         notificationPreference: payload.notificationPreference,
-        role: ROLES.CUSTOMER,
+        role: targetRole,
       };
 
       try {

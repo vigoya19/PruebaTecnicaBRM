@@ -2,6 +2,51 @@
 
 Backend serverless para la prueba tecnica de BTG Pactual. La solucion implementa la gestion de fondos solicitada con `Node.js`, `Fastify`, `AWS Lambda`, `API Gateway HTTP API`, `Amazon Cognito`, `DynamoDB`, `SNS/SES` y `Serverless Framework`.
 
+## Portada
+
+**Solucion entregada**
+
+- Parte 1: plataforma de fondos serverless en AWS
+- Parte 2: scripts SQL para PostgreSQL
+- Infraestructura, autenticacion, roles, pruebas, Postman y documentacion tecnica
+
+**Navegacion rapida**
+
+- [Que resuelve la solucion](#que-resuelve-la-solucion)
+- [Arquitectura](#arquitectura)
+- [Endpoints implementados](#endpoints-implementados)
+- [Instalacion local](#instalacion-local)
+- [Despliegue en AWS](#despliegue-en-aws)
+- [Prueba directa contra el ambiente ya desplegado](#prueba-directa-contra-el-ambiente-ya-desplegado)
+- [Seed de fondos](#seed-de-fondos)
+- [Postman](#postman)
+- [Flujo recomendado de validacion](#flujo-recomendado-de-validacion)
+- [Como probar endpoint por endpoint](#como-probar-endpoint-por-endpoint)
+- [Notificaciones: como interpretarlas](#notificaciones-como-interpretarlas)
+- [Roles y autorizacion](#roles-y-autorizacion)
+- [Parte 2 - SQL](#parte-2---sql)
+- [Resumen de validacion rapida](#resumen-de-validacion-rapida)
+- [Validacion en 5 minutos](#validacion-en-5-minutos)
+
+**Documentacion complementaria**
+
+- [Arquitectura funcional](docs/architecture.md)
+- [Arquitectura cloud](docs/cloud-architecture.md)
+- [Casos de uso](docs/use-cases.md)
+- [Estructura tecnica del codigo](docs/code-structure.md)
+- [Librerias utilizadas](docs/libraries-used.md)
+- [Cobertura del enunciado](docs/requirements-coverage.md)
+- [Diagrama en PDF](docs/arquitectura.pdf)
+- [Coleccion Postman](docs/postman/BTG_Funds.postman_collection.json)
+- [Environment Postman](docs/postman/BTG_Funds_AWS.postman_environment.json)
+
+**Ruta sugerida para el revisor**
+
+1. Leer esta portada y la seccion [Resumen de validacion rapida](#resumen-de-validacion-rapida).
+2. Si quiere ir al detalle tecnico, revisar [Arquitectura](#arquitectura) y [Roles y autorizacion](#roles-y-autorizacion).
+3. Si quiere probar la solucion, ir directo a [Postman](#postman) y [Como probar endpoint por endpoint](#como-probar-endpoint-por-endpoint).
+4. Si quiere revisar la Parte 2, ir a [Parte 2 - SQL](#parte-2---sql).
+
 ## Que resuelve la solucion
 
 La API permite que un cliente:
@@ -214,10 +259,10 @@ npm test -- --coverage
 
 Ultimo coverage esperado:
 
-- `100%` statements
-- `92.59%` branch
+- `98.29%` statements
+- `88.57%` branch
 - `100%` functions
-- `100%` lines
+- `98.17%` lines
 
 ## Despliegue en AWS
 
@@ -284,7 +329,7 @@ Para este escenario:
 
 - basta con importar la coleccion y el environment de Postman
 - verificar que `baseUrl` apunte a la URL anterior
-- ejecutar `Register` o `Login`
+- ejecutar `Register Customer`, `Login Customer`, `Register Admin` o `Login Admin`
 - continuar con el resto del flujo
 
 Si el revisor quiere una validacion totalmente aislada sobre su propia cuenta AWS, entonces debe seguir la seccion de despliegue y usar su propio `baseUrl`.
@@ -330,13 +375,19 @@ Environment:
 | `idToken` | JWT principal retornado por register/login |
 | `accessToken` | access token de Cognito |
 | `refreshToken` | refresh token de Cognito |
-| `email` | correo usado por register/login |
-| `password` | password usado por register/login |
-| `name` | nombre del usuario demo |
-| `phone` | telefono del usuario demo |
+| `customerEmail` | correo del usuario cliente |
+| `customerPassword` | password del usuario cliente |
+| `customerName` | nombre del usuario cliente |
+| `customerPhone` | telefono del usuario cliente |
+| `adminEmail` | correo del usuario admin |
+| `adminPassword` | password del usuario admin |
+| `adminName` | nombre del usuario admin |
+| `adminPhone` | telefono del usuario admin |
 | `fundId` | fondo a usar en apertura/cancelacion |
 | `notificationPreference` | `email` o `sms` |
-| `customerId` | id del usuario autenticado |
+| `customerId` | id del cliente autenticado en el flujo customer |
+| `adminCustomerId` | id del usuario autenticado en el flujo admin |
+| `targetCustomerId` | id del cliente que el admin va a consultar |
 
 ### Configuracion correcta en Postman
 
@@ -344,7 +395,8 @@ Environment:
 2. Importar el environment `BTG_Funds_AWS.postman_environment.json`.
 3. En la esquina superior derecha de Postman seleccionar el environment `BTG Funds AWS`.
 4. Editar `baseUrl` si el revisor desplego una API distinta.
-5. Ajustar `email`, `password`, `name`, `phone` y `notificationPreference` si quiere crear un usuario distinto.
+5. Ajustar `customerEmail`, `customerPassword`, `customerName`, `customerPhone` y `notificationPreference` si quiere crear un cliente distinto.
+6. Ajustar `adminEmail`, `adminPassword`, `adminName` y `adminPhone` si quiere crear un admin de prueba.
 
 Valor por defecto incluido en el environment:
 
@@ -359,23 +411,49 @@ Importante:
 - si Postman muestra `No environment selected`, los scripts de `Register` y `Login` no podran guardar `token`
 - si `token` no se guarda, cualquier endpoint protegido devolvera `401 Unauthorized`
 
+### Estructura de la coleccion
+
+La coleccion esta organizada por carpetas:
+
+- `01 - Public / Auth`
+  - `Health`
+  - `Register Customer`
+  - `Login Customer`
+  - `Register Admin`
+  - `Login Admin`
+- `02 - Customer`
+  - `Get My Profile`
+  - `List Funds`
+  - `Open Subscription`
+  - `List Transactions`
+  - `Cancel Subscription`
+- `03 - Admin`
+  - `List Customers`
+  - `Get Customer By Id`
+  - `Get Customer Transactions`
+
 ### Scripts automaticos incluidos
 
-Las requests `Register` y `Login` ya traen scripts de test que actualizan automaticamente:
+Las requests de autenticacion ya traen scripts de test que actualizan automaticamente:
 
 - `token`
 - `idToken`
 - `accessToken`
 - `refreshToken`
 - `customerId`
-- `email`
-- `name`
-- `phone`
+- `adminCustomerId`
+- `targetCustomerId`
+- `customerEmail`
+- `customerName`
+- `customerPhone`
+- `adminEmail`
+- `adminName`
+- `adminPhone`
 - `notificationPreference`
 
 Por eso el flujo recomendado es:
 
-1. ejecutar `Register` o `Login`
+1. ejecutar una request de login o registro
 2. dejar que Postman guarde el JWT
 3. consumir el resto de endpoints sin escribir manualmente el bearer token
 
@@ -384,8 +462,8 @@ Por eso el flujo recomendado es:
 Orden sugerido para un revisor funcional:
 
 1. `Health`
-2. `Register`
-3. `Login`
+2. `Register Customer`
+3. `Login Customer`
 4. `Get My Profile`
 5. `List Funds`
 6. `Open Subscription`
@@ -398,7 +476,7 @@ Orden sugerido para un revisor funcional:
 Que debe observarse:
 
 - el usuario se crea en Cognito y en DynamoDB
-- `Login` devuelve tokens y actualiza el environment
+- `Login Customer` devuelve tokens y actualiza el environment
 - el perfil inicia con `availableBalance: 500000`
 - la apertura descuenta saldo
 - la cancelacion devuelve el saldo
@@ -449,6 +527,19 @@ Body:
 }
 ```
 
+Body alterno para demo administrativa:
+
+```json
+{
+  "email": "admin.demo@example.com",
+  "password": "Temp1234!",
+  "name": "Admin Demo",
+  "phone": "+573001119999",
+  "notificationPreference": "email",
+  "role": "admin"
+}
+```
+
 Respuesta esperada:
 
 - `idToken`
@@ -458,7 +549,9 @@ Respuesta esperada:
 
 Observaciones:
 
-- esta request ya actualiza el environment de Postman
+- las requests `Register Customer` y `Register Admin` usan este mismo endpoint
+- `role` es opcional; por defecto la API crea usuarios `customer`
+- para la demo, `Register Admin` envia `role: "admin"` y crea un administrador de solo lectura
 - si el usuario ya existe en Cognito, el revisor puede cambiar el correo o pasar directamente a `Login`
 
 ### 3. `POST /auth/login`
@@ -790,6 +883,12 @@ El rol `admin` esta pensado para:
 - soporte operativo
 - supervision de actividad de clientes
 
+Alcance actual del rol `admin`:
+
+- los endpoints administrativos son de solo lectura
+- no crean, modifican ni eliminan informacion de clientes
+- su objetivo es visibilidad operativa y trazabilidad sobre usuarios `customer`
+
 En Cognito esto se representa con grupos:
 
 - `customer`
@@ -797,30 +896,65 @@ En Cognito esto se representa con grupos:
 
 La API valida el JWT en `API Gateway` y luego hace autorizacion fina dentro de la aplicacion usando el rol presente en los claims.
 
-### Como probar el rol `admin`
+### Como crear y probar una cuenta `admin`
 
-El endpoint `POST /auth/register` crea usuarios en el grupo `customer`.
+En esta version pensada para demo, `POST /auth/register` acepta tambien `role: "admin"` y puede crear un usuario administrativo directamente.
 
-Si el revisor quiere probar los endpoints administrativos, debe tomar un usuario existente de Cognito y agregarlo al grupo `admin`.
+Importante:
 
-Ejemplo con AWS CLI:
+- esta capacidad se habilito especificamente para facilitar la demo y las pruebas del evaluador
+- el objetivo es poder mostrar de forma directa las funcionalidades administrativas sin requerir un paso manual adicional en Cognito
+- aun con ese flujo de creacion a demanda, el alcance del admin sigue siendo de solo lectura sobre datos de clientes
+- en un escenario productivo, la alta de admins deberia quedar restringida a un proceso controlado y no a un registro publico abierto
 
-```bash
-aws cognito-idp admin-add-user-to-group \
-  --user-pool-id <CognitoUserPoolId> \
-  --username <correo-del-usuario> \
-  --group-name admin \
-  --region us-east-1
-```
+Si el revisor quiere probar los endpoints administrativos, este es el flujo recomendado:
 
-Despues de eso:
+#### Paso 1. Registrar el usuario que sera admin
 
-1. volver a ejecutar `Login`
-2. obtener un nuevo token con el claim del grupo actualizado
-3. probar:
-   - `GET /admin/customers`
-   - `GET /admin/customers/:customerId`
-   - `GET /admin/customers/:customerId/transactions`
+En Postman ejecutar:
+
+- `01 - Public / Auth -> Register Admin`
+
+Eso crea un usuario en Cognito usando:
+
+- `adminEmail`
+- `adminPassword`
+- `adminName`
+- `adminPhone`
+
+#### Paso 2. Iniciar sesion como admin
+
+En Postman ejecutar:
+
+- `01 - Public / Auth -> Login Admin`
+
+Esto actualiza automaticamente:
+
+- `token`
+- `adminCustomerId`
+
+#### Paso 3. Consultar un cliente objetivo
+
+Primero conviene haber ejecutado `Register Customer` o `Login Customer`, porque esas requests llenan:
+
+- `customerId`
+- `targetCustomerId`
+
+Luego el admin puede usar la carpeta:
+
+- `03 - Admin`
+
+#### Endpoints administrativos disponibles
+
+- `GET /admin/customers`
+- `GET /admin/customers/:customerId`
+- `GET /admin/customers/:customerId/transactions`
+
+#### Requests equivalentes en Postman
+
+- `03 - Admin -> List Customers`
+- `03 - Admin -> Get Customer By Id`
+- `03 - Admin -> Get Customer Transactions`
 
 En ambientes AWS restringidos, especialmente con SES sandbox:
 
@@ -888,7 +1022,7 @@ Resumen practico:
 
 Revisar:
 
-- que se haya ejecutado `Login` o `Register`
+- que se haya ejecutado `Login Customer`, `Login Admin`, `Register Customer` o `Register Admin`
 - que el environment `BTG Funds AWS` este seleccionado en Postman
 - que la variable `token` tenga valor
 
@@ -1039,7 +1173,7 @@ Si el revisor solo quiere confirmar el flujo principal, el minimo es:
 4. `npm run seed:funds`
 5. importar coleccion y environment de Postman
 6. seleccionar `BTG Funds AWS`
-7. ejecutar `Register`
+7. ejecutar `Register Customer`
 8. ejecutar `Get My Profile`
 9. ejecutar `List Funds`
 10. ejecutar `Open Subscription`
@@ -1054,7 +1188,7 @@ Si el evaluador dispone de muy poco tiempo, esta es la validacion mas corta y ef
 
 1. importar la coleccion y el environment de Postman
 2. seleccionar `BTG Funds AWS`
-3. ejecutar `Register`
+3. ejecutar `Register Customer`
 4. ejecutar `Get My Profile`
 5. ejecutar `List Funds`
 6. ejecutar `Open Subscription`
@@ -1063,7 +1197,7 @@ Si el evaluador dispone de muy poco tiempo, esta es la validacion mas corta y ef
 
 Que deberia verificar rapidamente:
 
-- `Register`
+- `Register Customer`
   - crea el usuario
   - devuelve tokens
   - llena automaticamente el environment

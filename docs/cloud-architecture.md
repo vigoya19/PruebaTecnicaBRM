@@ -12,19 +12,16 @@ Archivo fuente adicional:
 
 ## Vista funcional
 
-```mermaid
-flowchart TD
-    A["Cliente se registra o inicia sesion"] --> B["Cognito autentica y entrega JWT"]
-    B --> C["API Gateway valida token"]
-    C --> D["Lambda + Fastify procesa request"]
-    D --> E["Servicio de suscripciones aplica reglas de negocio"]
-    E --> F["DynamoDB actualiza saldo, suscripcion y transaccion"]
-    E --> G["Servicio de notificaciones decide canal"]
-    G --> H["SES envia email"]
-    G --> I["SNS envia SMS"]
-    H --> J["Se actualiza notificationStatus"]
-    I --> J
-```
+La imagen de arquitectura representa este flujo funcional:
+
+1. el cliente se registra o inicia sesion
+2. Cognito autentica y entrega el JWT
+3. API Gateway valida el token con el `JWT authorizer`
+4. Lambda ejecuta `Fastify` y enruta la solicitud
+5. la capa de servicios aplica reglas de negocio
+6. DynamoDB actualiza saldo, suscripcion y transaccion
+7. el servicio de notificaciones decide entre `SES` o `SNS`
+8. el resultado del envio se refleja en `notificationStatus`
 
 ## Componentes clave
 

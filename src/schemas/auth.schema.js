@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const { NOTIFICATION_PREFERENCES } = require('../config/constants');
+const { NOTIFICATION_PREFERENCES, ROLES } = require('../config/constants');
 
 const registerSchema = z
   .object({
@@ -13,6 +13,7 @@ const registerSchema = z
       .regex(/[^A-Za-z0-9]/, 'Password must include a special character'),
     name: z.string().min(2),
     phone: z.string().optional(),
+    role: z.enum([ROLES.CUSTOMER, ROLES.ADMIN]).optional(),
     notificationPreference: z.enum([
       NOTIFICATION_PREFERENCES.EMAIL,
       NOTIFICATION_PREFERENCES.SMS,
