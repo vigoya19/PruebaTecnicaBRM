@@ -1078,6 +1078,50 @@ La Parte 2 del enunciado no pide construir otro servicio backend ni otra API. Lo
 
 En esta solucion, esa parte se entrega como un conjunto ordenado de scripts listos para ejecutar en PostgreSQL.
 
+### Opcion rapida con Docker
+
+Para facilitar la revision, tambien se entrega una forma de levantar PostgreSQL con Docker y ejecutar automaticamente todos los scripts SQL al iniciar el contenedor.
+
+Archivos:
+
+- `Dockerfile.postgres`
+- `docker-compose.postgres.yml`
+
+Comando:
+
+```bash
+docker compose -f docker-compose.postgres.yml up --build
+```
+
+Que hace:
+
+- levanta un contenedor PostgreSQL
+- crea la base `btg`
+- copia los scripts `sql/` al directorio `/docker-entrypoint-initdb.d/`
+- ejecuta automaticamente los archivos en este orden:
+  - `01_schema.sql`
+  - `02_tables.sql`
+  - `03_constraints.sql`
+  - `04_seed.sql`
+  - `05_queries.sql`
+
+Credenciales por defecto del contenedor:
+
+- base de datos: `btg`
+- usuario: `postgres`
+- password: `postgres`
+- puerto: `5432`
+
+Importante:
+
+- los scripts de inicializacion de Postgres solo se ejecutan automaticamente la primera vez que se crea el volumen
+- si se quiere reinicializar la base desde cero y volver a ejecutar todos los scripts, usar:
+
+```bash
+docker compose -f docker-compose.postgres.yml down -v
+docker compose -f docker-compose.postgres.yml up --build
+```
+
 ### Archivos entregados
 
 - `sql/01_schema.sql`

@@ -1,0 +1,17 @@
+services:
+  btg-postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    container_name: btg-postgres
+    environment:
+      POSTGRES_DB: btg
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - btg_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  btg_postgres_data:
